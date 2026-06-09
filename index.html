@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Academia Ajedrez">
+<meta name="description" content="Aprende ajedrez desde cero con lecciones interactivas y partidas contra la IA">
+<link rel="manifest" href="manifest.json">
+<title>Academia de Ajedrez</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',sans-serif;background:#1a1a2e;color:#eee;min-height:100vh;overflow-x:hidden}
+.app{max-width:500px;margin:0 auto;padding:12px}
+.screen{display:none}.screen.active{display:block}
+.app-header{text-align:center;margin-bottom:14px;padding-top:8px}
+.app-title{font-family:'Fredoka One',cursive;font-size:30px;color:#f5c542;letter-spacing:2px}
+.app-subtitle{font-size:12px;color:#aaa;margin-top:2px}
+.progress-bar-wrap{background:#2a2a3e;border-radius:20px;height:10px;margin:8px 0;overflow:hidden;border:1px solid #444}
+.progress-bar-fill{height:100%;background:#BA7517;border-radius:20px;transition:width .5s ease}
+.map-section-title{font-size:10px;font-weight:800;color:#aaa;letter-spacing:2px;text-transform:uppercase;margin:14px 0 6px;padding-left:2px}
+.level-map{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.level-card{background:#252538;border:1px solid #3a3a4e;border-radius:14px;padding:10px 8px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s;position:relative;user-select:none;-webkit-tap-highlight-color:transparent}
+.level-card:active:not(.locked){transform:scale(.96)}
+.level-card.locked{opacity:.45;cursor:not-allowed}
+.level-card.completed{border-color:#27ae60;background:#1a2e22}
+.level-card.battle{border-color:#e74c3c;background:#2e1a1a}
+.level-card .level-icon{font-size:24px;margin-bottom:3px}
+.level-card .level-name{font-size:11px;font-weight:700;color:#eee}
+.level-card .level-type{font-size:10px;color:#888;margin-top:1px}
+.level-card .star-row{font-size:10px;margin-top:2px;color:#f5c542}
+.lock-icon{position:absolute;top:5px;right:6px;font-size:11px}
+.lesson-container{background:#252538;border-radius:16px;border:1px solid #3a3a4e;padding:14px}
+.lesson-title{font-family:'Fredoka One',cursive;font-size:20px;color:#f5c542;margin-bottom:6px}
+.lesson-instruction{font-size:12px;color:#ccc;margin-bottom:10px;background:#1e1e30;padding:8px 10px;border-radius:10px;border-left:3px solid #f5c542;line-height:1.5}
+.step-dots{display:flex;gap:5px;justify-content:center;margin-bottom:8px}
+.step-dot{width:8px;height:8px;border-radius:50%;background:#2a2a3e;border:1px solid #555}
+.step-dot.active{background:#f5c542}.step-dot.done{background:#27ae60}
+.board-wrapper{display:flex;flex-direction:column;align-items:center;gap:8px}
+.board-coords-top{display:flex;padding-left:18px;width:fit-content}
+.board-coords-top span{width:40px;font-size:9px;font-weight:700;color:#888;text-align:center}
+.board-row{display:flex;align-items:center}
+.board-coords-left{display:flex;flex-direction:column;width:18px}
+.board-coords-left span{height:40px;font-size:9px;font-weight:700;color:#888;display:flex;align-items:center;justify-content:center}
+.chess-board{display:grid;grid-template-columns:repeat(8,40px);grid-template-rows:repeat(8,40px);border:2px solid #854F0B;border-radius:4px;overflow:hidden}
+.cell{width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:26px;line-height:1;position:relative;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.cell.light{background:#F0D9B5}.cell.dark{background:#B58863}
+.cell.selected{background:#7fc97f!important}
+.cell.hint-move::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(0,0,0,.22)}
+.cell.hint-capture::after{content:'';position:absolute;inset:0;border:3px solid rgba(220,50,50,.6)}
+.cell.last-move{background:#f9e79f!important}
+.cell.king-check{background:#e74c3c!important}
+.side-info{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.info-box{background:#1e1e30;border-radius:10px;padding:8px;border:1px solid #3a3a4e}
+.info-box h4{font-size:10px;color:#888;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.turn-dot{width:12px;height:12px;border-radius:50%;border:2px solid #555;display:inline-block;vertical-align:middle;margin-right:4px}
+.turn-dot.w{background:#fff}.turn-dot.b{background:#222;border-color:#999}
+.feedback-box{padding:8px 10px;border-radius:10px;font-size:12px;font-weight:700;margin-top:8px;display:none}
+.feedback-box.show{display:block}
+.feedback-box.success{background:#1a3a25;color:#58d68d;border:1px solid #27ae60}
+.feedback-box.error{background:#3a1a1a;color:#e74c3c;border:1px solid #c0392b}
+.feedback-box.info{background:#1a2535;color:#5dade2;border:1px solid #2980b9}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 16px;border-radius:22px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:transform .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn:active{transform:scale(.95)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:#f5c542;color:#3a2500}
+.btn-ghost{background:#2a2a3e;color:#ccc;border:1px solid #444}
+.battle-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.player-tag{display:flex;align-items:center;gap:6px;background:#1e1e30;border-radius:20px;padding:5px 10px;font-size:11px;font-weight:700;border:1px solid #3a3a4e}
+.vs-badge{font-family:'Fredoka One',cursive;font-size:18px;color:#e74c3c}
+.diff-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:4px}
+.diff-easy{background:#1a3a25;color:#58d68d}
+.diff-medium{background:#3a3010;color:#f5c542}
+.diff-hard{background:#3a1010;color:#e74c3c}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#252538;border-radius:20px;padding:24px;max-width:320px;width:92%;text-align:center;border:1px solid #3a3a4e}
+.modal-emoji{font-size:48px;margin-bottom:8px}
+.modal-title{font-family:'Fredoka One',cursive;font-size:22px;color:#f5c542;margin-bottom:8px}
+.modal-text{font-size:12px;color:#bbb;margin-bottom:14px;line-height:1.6}
+.install-banner{background:#1e1e30;border:1px solid #f5c542;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:#f5c542;display:flex;align-items:center;gap:8px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="app-header">
+    <div class="app-title">♟ Academia de Ajedrez</div>
+    <div class="app-subtitle">Aprende · Practica · Domina</div>
+  </div>
+  <div id="installBanner" style="display:none" class="install-banner">
+    📲 <span>Toca el menu del navegador y selecciona <b>"Agregar a pantalla de inicio"</b> para instalar como app!</span>
+  </div>
+
+  <div class="screen active" id="screen-map"><div id="mapContent"></div></div>
+
+  <div class="screen" id="screen-lesson">
+    <div class="top-bar">
+      <button class="btn btn-ghost" onclick="goMap()">← Mapa</button>
+      <span id="lessonProg" style="font-size:11px;color:#888"></span>
+    </div>
+    <div class="lesson-container">
+      <div class="lesson-title" id="lessonTitle"></div>
+      <div class="lesson-instruction" id="lessonInstruction"></div>
+      <div class="step-dots" id="stepDots"></div>
+      <div class="board-wrapper">
+        <div class="board-coords-top" id="coordsTop"></div>
+        <div class="board-row">
+          <div class="board-coords-left" id="coordsLeft"></div>
+          <div class="chess-board" id="lessonBoard"></div>
+        </div>
+      </div>
+      <div class="side-info" id="lessonSide"></div>
+      <div class="feedback-box" id="lessonFeedback"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="lessonNextBtn" onclick="lessonNext()" style="display:none">Siguiente →</button>
+        <button class="btn btn-ghost" id="lessonRetryBtn" onclick="lessonRetry()" style="display:none">↩ Reintentar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-battle">
+    <div class="top-bar"><button class="btn btn-ghost" onclick="goMap()">← Mapa</button></div>
+    <div class="lesson-container">
+      <div class="battle-header">
+        <div class="player-tag"><div class="turn-dot w"></div>Tu</div>
+        <div class="vs-badge">VS</div>
+        <div class="player-tag"><div class="turn-dot b"></div>IA<span class="diff-badge" id="diffBadge">Facil</span></div>
+      </div>
+      <div class="lesson-title" id="battleTitle"></div>
+      <div class="lesson-instruction" id="battleInstruction"></div>
+      <div class="board-wrapper">
+        <div class="board-coords-top" id="battleCoordsTop"></div>
+        <div class="board-row">
+          <div class="board-coords-left" id="battleCoordsLeft"></div>
+          <div class="chess-board" id="battleBoard"></div>
+        </div>
+      </div>
+      <div class="side-info" id="battleSide"></div>
+      <div class="feedback-box" id="battleFeedback"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="undoBattle()">↩ Deshacer</button>
+        <button class="btn btn-primary" id="btnHint" onclick="showHint()">💡 Pista</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-emoji" id="modalEmoji"></div>
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-text" id="modalText"></div>
+    <div class="btn-row" style="justify-content:center" id="modalBtns"></div>
+  </div>
+</div>
+
+<script>
+const FILES=['a','b','c','d','e','f','g','h'],RANKS=['8','7','6','5','4','3','2','1'];
+const GLYPHS={wK:'♔',wQ:'♕',wR:'♖',wB:'♗',wN:'♘',wP:'♙',bK:'♚',bQ:'♛',bR:'♜',bB:'♝',bN:'♞',bP:'♟'};
+const fi=f=>FILES.indexOf(f),ri=r=>RANKS.indexOf(r),alg=(f,r)=>FILES[f]+RANKS[r],ib=(f,r)=>f>=0&&f<8&&r>=0&&r<8;
+function psq(sq){return{fi:fi(sq[0]),ri:ri(sq[1])}}
+
+const CURRICULUM=[
+  {id:1,name:'El Tablero',type:'lesson',icon:'♟',topic:'board',steps:[
+    {title:'El Tablero de Ajedrez',text:'El tablero tiene 64 casillas. Las columnas son letras (a-h) y las filas son numeros (1-8). Cada casilla tiene un nombre unico. Toca la casilla E4!',board:{},target:'e4',type:'click'},
+    {title:'Identifica casillas',text:'Muy bien! Ahora toca la casilla D5.',board:{},target:'d5',type:'click'}]},
+  {id:2,name:'El Rey',type:'lesson',icon:'♔',topic:'king',steps:[
+    {title:'El Rey',text:'El Rey se mueve 1 casilla en cualquier direccion. Es la pieza mas importante del juego! Toca el Rey para ver sus movimientos.',board:{e4:'wK'},type:'show_moves',piece:'wK',from:'e4'},
+    {title:'Mueve el Rey',text:'Ahora mueve el Rey a D5.',board:{e4:'wK'},type:'move',piece:'wK',from:'e4',to:'d5'}]},
+  {id:3,name:'La Torre',type:'lesson',icon:'♖',topic:'rook',steps:[
+    {title:'La Torre',text:'La Torre se mueve en linea recta: horizontal o vertical, todas las casillas que quiera. Toca la Torre.',board:{e4:'wR'},type:'show_moves',piece:'wR',from:'e4'},
+    {title:'Mueve la Torre',text:'Mueve la Torre de E4 a E8.',board:{e4:'wR'},type:'move',piece:'wR',from:'e4',to:'e8'}]},
+  {id:4,name:'El Alfil',type:'lesson',icon:'♗',topic:'bishop',steps:[
+    {title:'El Alfil',text:'El Alfil se mueve en diagonal y siempre permanece en el mismo color. Toca el Alfil.',board:{e4:'wB'},type:'show_moves',piece:'wB',from:'e4'},
+    {title:'Captura con el Alfil',text:'Captura el caballo negro en H7.',board:{e4:'wB',h7:'bN'},type:'move',piece:'wB',from:'e4',to:'h7'}]},
+  {id:5,name:'El Caballo',type:'lesson',icon:'♘',topic:'knight',steps:[
+    {title:'El Caballo',text:'El Caballo salta en forma de L: 2+1 casillas. Es el unico que puede saltar sobre otras piezas! Toca el Caballo.',board:{e4:'wN'},type:'show_moves',piece:'wN',from:'e4'},
+    {title:'Mueve el Caballo',text:'Mueve el Caballo a F6.',board:{e4:'wN'},type:'move',piece:'wN',from:'e4',to:'f6'}]},
+  {id:6,name:'La Reina',type:'lesson',icon:'♕',topic:'queen',steps:[
+    {title:'La Reina',text:'La pieza mas poderosa! Combina Torre y Alfil: se mueve en linea recta y diagonal. Toca la Reina.',board:{e4:'wQ'},type:'show_moves',piece:'wQ',from:'e4'},
+    {title:'Captura con la Reina',text:'Captura la Torre negra en A4.',board:{e4:'wQ',a4:'bR'},type:'move',piece:'wQ',from:'e4',to:'a4'}]},
+  {id:7,name:'El Peon',type:'lesson',icon:'♙',topic:'pawn',steps:[
+    {title:'El Peon',text:'El Peon avanza 1 casilla (o 2 desde el inicio) y captura en diagonal. Si llega al final, se convierte en Reina! Toca el peon.',board:{e2:'wP'},type:'show_moves',piece:'wP',from:'e2'},
+    {title:'Avanza el Peon',text:'Mueve el peon de E2 a E4.',board:{e2:'wP'},type:'move',piece:'wP',from:'e2',to:'e4'}]},
+  {id:8,name:'Capturar',type:'lesson',icon:'⚔',topic:'capture',steps:[
+    {title:'Capturar piezas',text:'Usa la Reina para capturar TODAS las piezas negras del tablero!',board:{d1:'wQ',d5:'bP',g4:'bN',b3:'bB'},type:'capture_all'}]},
+  {id:9,name:'Jaque',type:'lesson',icon:'⚠',topic:'check',steps:[
+    {title:'Escapa del Jaque!',text:'El Rey blanco esta en jaque de la Torre negra en E1. Mueve el Rey para escapar!',board:{e8:'wK',e1:'bR'},type:'escape_check',piece:'wK',from:'e8'}]},
+  {id:10,name:'Jaque Mate',type:'lesson',icon:'💀',topic:'checkmate',steps:[
+    {title:'Da Jaque Mate!',text:'Mueve la Reina a D8 para dar jaque mate al Rey negro.',board:{e8:'bK',d1:'wQ',h1:'wR',a7:'wK'},type:'move',piece:'wQ',from:'d1',to:'d8'}]},
+  {id:'b1',name:'Batalla 1',type:'battle',icon:'⚔',difficulty:1,title:'Primera Batalla - Principiante',desc:'Pon en practica lo aprendido. La IA juega simple. Tu juegas con blancas!'},
+  {id:11,name:'Centro',type:'lesson',icon:'🎯',topic:'center',steps:[
+    {title:'Controla el Centro',text:'E4,E5,D4,D5 son las casillas mas importantes del tablero. Mueve el peon a E4.',board:{e2:'wP'},type:'move',piece:'wP',from:'e2',to:'e4'}]},
+  {id:12,name:'Desarrollo',type:'lesson',icon:'🚀',topic:'dev',steps:[
+    {title:'Desarrolla tus Piezas',text:'Saca caballos y alfiles antes que la Reina. Mueve el Caballo de G1 a F3.',board:{g1:'wN',e1:'wK',h1:'wR'},type:'move',piece:'wN',from:'g1',to:'f3'}]},
+  {id:13,name:'Enroque',type:'lesson',icon:'🏰',topic:'castle',steps:[
+    {title:'El Enroque',text:'El Rey salta 2 casillas hacia la Torre, la Torre pasa al otro lado. Protege al Rey! Toca el Rey para enrocar.',board:{e1:'wK',h1:'wR'},type:'castle'}]},
+  {id:14,name:'Tenedor',type:'lesson',icon:'🍴',topic:'fork',steps:[
+    {title:'El Tenedor (Fork)',text:'Ataca dos piezas a la vez! Mueve el Caballo a C7 para atacar al Rey y la Torre al mismo tiempo.',board:{b5:'wN',e8:'bK',a8:'bR'},type:'move',piece:'wN',from:'b5',to:'c7'}]},
+  {id:15,name:'Clavada',type:'lesson',icon:'📌',topic:'pin',steps:[
+    {title:'La Clavada (Pin)',text:'Una pieza clavada no puede moverse sin exponer una pieza mas valiosa. Mueve el Alfil a B5.',board:{f1:'wB',e1:'wK',c6:'bN',e8:'bK'},type:'move',piece:'wB',from:'f1',to:'b5'}]},
+  {id:16,name:'Sacrificio',type:'lesson',icon:'🎁',topic:'sac',steps:[
+    {title:'El Sacrificio',text:'A veces dar una pieza da una gran ventaja! Captura el peon en F7 con el Alfil.',board:{c4:'wB',f7:'bP',e8:'bK'},type:'move',piece:'wB',from:'c4',to:'f7'}]},
+  {id:17,name:'Final Torre',type:'lesson',icon:'🏁',topic:'rend',steps:[
+    {title:'Final de Torre',text:'Torre y Rey contra Rey: mueve la Torre a A8 para dar jaque mate.',board:{a1:'wR',e1:'wK',e8:'bK'},type:'move',piece:'wR',from:'a1',to:'a8'}]},
+  {id:18,name:'Oposicion',type:'lesson',icon:'↔',topic:'opp',steps:[
+    {title:'La Oposicion',text:'Los reyes frente a frente. Mueve el Rey a D5 para tomar la oposicion.',board:{e3:'wK',e7:'bK',e5:'wP'},type:'move',piece:'wK',from:'e3',to:'d5'}]},
+  {id:19,name:'Coronacion',type:'lesson',icon:'👑',topic:'promo',steps:[
+    {title:'Coronacion del Peon',text:'El peon llega al final y se convierte en Reina! Avanza el peon a E8.',board:{e7:'wP',e1:'wK'},type:'promote',piece:'wP',from:'e7',to:'e8'}]},
+  {id:20,name:'Patron Mate',type:'lesson',icon:'🔥',topic:'mat',steps:[
+    {title:'Patron de Jaque Mate',text:'Mueve la Reina a H7 para dar jaque mate.',board:{h1:'wQ',e1:'wK',h8:'bK',g8:'bR',g7:'bP',f7:'bP'},type:'move',piece:'wQ',from:'h1',to:'h7'}]},
+  {id:'b2',name:'Batalla 2',type:'battle',icon:'⚔',difficulty:2,title:'Segunda Batalla - Intermedio',desc:'La IA juega con estrategia basica. Usa tenedores, clavadas y sacrificios!'},
+  {id:21,name:'Ataque Doble',type:'lesson',icon:'💥',topic:'da',steps:[
+    {title:'Ataque Doble',text:'Ataca dos piezas a la vez! Mueve la Reina a E5 para atacar Torre y Caballo.',board:{d4:'wQ',a1:'bR',h8:'bN',e1:'wK'},type:'move',piece:'wQ',from:'d4',to:'e5'}]},
+  {id:22,name:'Col. Abierta',type:'lesson',icon:'📊',topic:'of',steps:[
+    {title:'Columna Abierta',text:'Torres en columnas sin peones son muy fuertes. Mueve la Torre a D1.',board:{d4:'wR'},type:'move',piece:'wR',from:'d4',to:'d1'}]},
+  {id:23,name:'Ataque al Rey',type:'lesson',icon:'👑',topic:'ka',steps:[
+    {title:'Atacar al Rey',text:'El objetivo es el Rey enemigo! Mueve la Dama a H7 para dar jaque.',board:{d3:'wQ',h8:'bK',g7:'bP'},type:'move',piece:'wQ',from:'d3',to:'h7'}]},
+  {id:24,name:'El Bloqueo',type:'lesson',icon:'🚧',topic:'blk',steps:[
+    {title:'Bloquear Peones',text:'Bloquea el peon pasado con tu Caballo. Mueve el Caballo a D5.',board:{c3:'wN',d4:'bP',e1:'wK',e8:'bK'},type:'move',piece:'wN',from:'c3',to:'d5'}]},
+  {id:25,name:'Mate Pastor',type:'lesson',icon:'⚡',topic:'sch',steps:[
+    {title:'El Mate del Pastor',text:'El mate mas rapido! Mueve la Reina a H5 para amenazar F7.',board:{e1:'wK',e4:'wP',c4:'wB',f1:'wQ',e8:'bK',e7:'bP',d7:'bP'},type:'move',piece:'wQ',from:'f1',to:'h5'}]},
+  {id:'b3',name:'Batalla Final',type:'battle',icon:'🏆',difficulty:3,title:'Batalla Final - Gran Maestro!',desc:'La IA en su nivel maximo. Usa todo lo aprendido. Esta es la prueba definitiva!'},
+];
+
+let state={done:new Set(),stars:{},cl:null,cs:0,lb:{},sel:null,vm:[],bb:null,bt:'w',bm:[],bsel:null,bvm:[],bdiff:1,hint:false,lf:null,lt:null};
+
+function getMoves(board,sq,color){
+  const p=board[sq];if(!p)return[];
+  const{fi:f,ri:r}=psq(sq),opp=color==='w'?'b':'w',moves=[];
+  const cg=(nf,nr)=>{if(!ib(nf,nr))return false;const t=board[alg(nf,nr)];return!t||t[0]===opp};
+  const am=(nf,nr)=>{if(cg(nf,nr))moves.push(alg(nf,nr))};
+  const sl=dirs=>{for(const[df,dr]of dirs){let nf=f+df,nr=r+dr;while(ib(nf,nr)){const t=board[alg(nf,nr)];moves.push(alg(nf,nr));if(t)break;nf+=df;nr+=dr;}}};
+  const pt=p[1];
+  if(pt==='K')for(let df=-1;df<=1;df++)for(let dr=-1;dr<=1;dr++){if(df||dr)am(f+df,r+dr);}
+  else if(pt==='Q')sl([[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]);
+  else if(pt==='R')sl([[1,0],[-1,0],[0,1],[0,-1]]);
+  else if(pt==='B')sl([[1,1],[1,-1],[-1,1],[-1,-1]]);
+  else if(pt==='N')for(const[df,dr]of[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]])am(f+df,r+dr);
+  else if(pt==='P'){
+    if(color==='w'){if(r>0&&!board[alg(f,r-1)])moves.push(alg(f,r-1));if(r===6&&!board[alg(f,r-1)]&&!board[alg(f,r-2)])moves.push(alg(f,r-2));if(f>0&&r>0&&board[alg(f-1,r-1)]&&board[alg(f-1,r-1)][0]==='b')moves.push(alg(f-1,r-1));if(f<7&&r>0&&board[alg(f+1,r-1)]&&board[alg(f+1,r-1)][0]==='b')moves.push(alg(f+1,r-1));}
+    else{if(r<7&&!board[alg(f,r+1)])moves.push(alg(f,r+1));if(r===1&&!board[alg(f,r+1)]&&!board[alg(f,r+2)])moves.push(alg(f,r+2));if(f>0&&r<7&&board[alg(f-1,r+1)]&&board[alg(f-1,r+1)][0]==='w')moves.push(alg(f-1,r+1));if(f<7&&r<7&&board[alg(f+1,r+1)]&&board[alg(f+1,r+1)][0]==='w')moves.push(alg(f+1,r+1));}
+  }
+  return moves;
+}
+function inCheck(board,color){let ks=null;for(const sq in board)if(board[sq]===color+'K'){ks=sq;break;}if(!ks)return false;const opp=color==='w'?'b':'w';for(const sq in board){if(!board[sq]||board[sq][0]!==opp)continue;if(getMoves(board,sq,opp).includes(ks))return true;}return false;}
+function legal(board,sq,color){return getMoves(board,sq,color).filter(to=>{const nb={...board};nb[to]=nb[sq];delete nb[sq];return!inCheck(nb,color);});}
+function isMate(board,color){for(const sq in board){if(!board[sq]||board[sq][0]!==color)continue;if(legal(board,sq,color).length>0)return false;}return inCheck(board,color);}
+function isStale(board,color){if(inCheck(board,color))return false;for(const sq in board){if(!board[sq]||board[sq][0]!==color)continue;if(legal(board,sq,color).length>0)return false;}return true;}
+const PV={P:100,N:320,B:330,R:500,Q:900,K:0};
+function evalB(board){let s=0;for(const sq in board){const p=board[sq];if(p)s+=p[0]==='w'?(PV[p[1]]||0):-(PV[p[1]]||0);}return s;}
+function aiMove(board,color,depth){
+  const all=[];for(const sq in board){if(!board[sq]||board[sq][0]!==color)continue;for(const to of legal(board,sq,color))all.push({from:sq,to});}
+  if(!all.length)return null;if(depth===0)return all[Math.floor(Math.random()*all.length)];
+  let best=null,bs=color==='b'?Infinity:-Infinity;
+  const sh=all.sort(()=>Math.random()-.5).slice(0,Math.min(all.length,depth>=2?8:16));
+  for(const m of sh){const nb={...board};nb[m.to]=nb[m.from];delete nb[m.from];if(nb[m.to]==='bP'&&m.to[1]==='1')nb[m.to]='bQ';if(nb[m.to]==='wP'&&m.to[1]==='8')nb[m.to]='wQ';let sc;if(depth>=2){const r2=aiMove(nb,color==='b'?'w':'b',depth-1);if(r2){const nb2={...nb};nb2[r2.to]=nb2[r2.from];delete nb2[r2.from];sc=evalB(nb2);}else sc=evalB(nb);}else sc=evalB(nb);if((color==='b'&&sc<bs)||(color==='w'&&sc>bs)){bs=sc;best=m;}}
+  return best||sh[0];
+}
+function renderBoard(id,board,sel,vm,lf,lt,chk,cb){
+  const el=document.getElementById(id);if(!el)return;el.innerHTML='';
+  RANKS.forEach((rank,ri2)=>FILES.forEach((file,fi2)=>{
+    const sq=file+rank,cell=document.createElement('div');
+    cell.className='cell '+((fi2+ri2)%2===0?'light':'dark');
+    if(sel===sq)cell.classList.add('selected');
+    if(vm.includes(sq)){if(board[sq])cell.classList.add('hint-capture');else cell.classList.add('hint-move');}
+    if(lf===sq||lt===sq)cell.classList.add('last-move');
+    if(chk===sq)cell.classList.add('king-check');
+    if(board[sq])cell.textContent=GLYPHS[board[sq]];
+    cell.onclick=()=>cb(sq);el.appendChild(cell);
+  }));
+}
+function renderCoords(tid,lid){
+  const top=document.getElementById(tid),left=document.getElementById(lid);
+  if(top){top.innerHTML='';FILES.forEach(f=>{const s=document.createElement('span');s.textContent=f;top.appendChild(s);});}
+  if(left){left.innerHTML='';RANKS.forEach(r=>{const s=document.createElement('span');s.textContent=r;left.appendChild(s);});}
+}
+function goMap(){
+  showScreen('map');
+  const el=document.getElementById('mapContent'),done=state.done.size,total=CURRICULUM.filter(l=>l.type==='lesson').length,pct=Math.round(done/total*100);
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:#aaa">Progreso: <b style="color:#f5c542">${done}/${total} lecciones</b></span><span style="font-size:11px;color:#aaa">${pct}%</span></div><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>`;
+  const blocks=[{lb:'Bloque 1 — Las Piezas',ids:[1,2,3,4,5,6,7,8,9,10,'b1']},{lb:'Bloque 2 — Estrategia',ids:[11,12,13,14,15,16,17,18,19,20,'b2']},{lb:'Bloque 3 — Avanzado',ids:[21,22,23,24,25,'b3']}];
+  blocks.forEach(blk=>{
+    const t=document.createElement('div');t.className='map-section-title';t.textContent=blk.lb;el.appendChild(t);
+    const g=document.createElement('div');g.className='level-map';
+    blk.ids.forEach(id=>{
+      const lvl=CURRICULUM.find(l=>l.id===id);if(!lvl)return;
+      const c=document.createElement('div');c.className='level-card';
+      if(lvl.type==='battle')c.classList.add('battle');
+      const unlk=isUnlocked(lvl);if(!unlk)c.classList.add('locked');if(state.done.has(lvl.id))c.classList.add('completed');
+      const st=state.stars[lvl.id]||0;
+      c.innerHTML=`<div class="level-icon">${lvl.icon}</div><div class="level-name">${lvl.name}</div><div class="level-type">${lvl.type==='battle'?'Partida':'Leccion'}</div>${lvl.type==='lesson'?`<div class="star-row">${'★'.repeat(st)}${'☆'.repeat(3-st)}</div>`:''}${!unlk?'<div class="lock-icon">🔒</div>':''}`;
+      if(unlk)c.onclick=()=>lvl.type==='battle'?startBattle(lvl):startLesson(lvl);
+      g.appendChild(c);
+    });
+    el.appendChild(g);
+  });
+}
+function isUnlocked(lvl){if(state.done.has(lvl.id))return true;const idx=CURRICULUM.findIndex(l=>l.id===lvl.id);return idx===0||state.done.has(CURRICULUM[idx-1].id);}
+function showScreen(n){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+n).classList.add('active');}
+function showFb(pfx,type,html){const el=document.getElementById(pfx+'Feedback');el.className='feedback-box show '+type;el.innerHTML=html;}
+function hideFb(pfx){const el=document.getElementById(pfx+'Feedback');if(el){el.className='feedback-box';el.innerHTML='';}}
+
+function startLesson(lvl){state.cl=lvl;state.cs=0;showScreen('lesson');loadStep();}
+function loadStep(){
+  const lvl=state.cl,step=lvl.steps[state.cs];
+  document.getElementById('lessonTitle').textContent=step.title;
+  document.getElementById('lessonInstruction').textContent=step.text;
+  document.getElementById('lessonProg').textContent=`Paso ${state.cs+1}/${lvl.steps.length}`;
+  const sd=document.getElementById('stepDots');sd.innerHTML='';
+  lvl.steps.forEach((_,i)=>{const d=document.createElement('div');d.className='step-dot'+(i<state.cs?' done':i===state.cs?' active':'');sd.appendChild(d);});
+  state.lb={...step.board};state.sel=null;state.vm=[];state.lf=null;state.lt=null;
+  document.getElementById('lessonNextBtn').style.display='none';
+  document.getElementById('lessonRetryBtn').style.display='none';
+  hideFb('lesson');
+  renderCoords('coordsTop','coordsLeft');
+  renderBoard('lessonBoard',state.lb,null,[],null,null,null,sq=>lClick(sq,step));
+  const tips={board:'Letra=columna (a-h), Numero=fila (1-8)',king:'El Rey es la pieza mas importante',rook:'La Torre domina filas y columnas',bishop:'El Alfil siempre en el mismo color',knight:'El Caballo es el unico que salta',queen:'Reina = Torre + Alfil: la mas poderosa',pawn:'El Peon puede coronarse en Reina!',capture:'Capturar da ventaja de material',check:'En jaque: mueve el Rey, bloquea o captura',checkmate:'Jaque mate = fin del juego',center:'E4,E5,D4,D5 son las casillas clave',dev:'Desarrolla piezas antes de atacar',castle:'Enroca para proteger al Rey',fork:'El tenedor ataca 2 piezas a la vez',pin:'La pieza clavada no puede moverse',sac:'Un sacrificio puede dar gran ventaja',rend:'Torre+Rey siempre da jaque mate',opp:'La oposicion decide finales de peones',promo:'Un peon que corona cambia el juego',mat:'Aprende patrones de mate de memoria',da:'Atacar 2 piezas a la vez gana material',of:'Torres en columnas abiertas = poder',ka:'Concentra piezas para atacar al Rey',blk:'Caballo bloqueando peon pasado = defensa',sch:'El Mate del Pastor es muy rapido!'};
+  document.getElementById('lessonSide').innerHTML=`<div class="info-box"><h4>Consejo</h4><div style="font-size:11px;color:#bbb;line-height:1.5">${tips[lvl.topic]||'Sigue practicando!'}</div></div><div class="info-box"><h4>Objetivo</h4><div style="font-size:11px;color:#999">Completa para ganar ★★★</div></div>`;
+}
+function lClick(sq,step){
+  if(step.type==='click'){
+    if(sq===step.target){const cells=document.getElementById('lessonBoard').children;const idx=RANKS.indexOf(sq[1])*8+FILES.indexOf(sq[0]);if(cells[idx])cells[idx].classList.add('selected');showFb('lesson','success','Correcto! Casilla '+sq.toUpperCase()+' encontrada!');setTimeout(nextStep,1200);}
+    else showFb('lesson','error','No es esa. Busca la casilla '+step.target.toUpperCase());return;
+  }
+  if(step.type==='show_moves'){
+    if(state.lb[sq]===step.piece){state.vm=getMoves(state.lb,sq,state.lb[sq][0]);state.sel=sq;renderBoard('lessonBoard',state.lb,sq,state.vm,null,null,null,s=>lClick(s,step));showFb('lesson','info','Estos son los movimientos posibles: '+state.vm.length+' opciones!');document.getElementById('lessonNextBtn').style.display='inline-flex';}return;
+  }
+  if(step.type==='move'||step.type==='capture_all'){
+    if(!state.sel){if(state.lb[sq]&&state.lb[sq][0]==='w'){state.sel=sq;state.vm=legal(state.lb,sq,'w');renderBoard('lessonBoard',state.lb,sq,state.vm,null,null,null,s=>lClick(s,step));}}
+    else{
+      if(state.vm.includes(sq)){
+        const from=state.sel,nb={...state.lb};nb[sq]=nb[from];delete nb[from];if(nb[sq]==='wP'&&sq[1]==='8')nb[sq]='wQ';
+        state.lb=nb;state.sel=null;state.vm=[];state.lf=from;state.lt=sq;renderBoard('lessonBoard',state.lb,null,[],from,sq,null,s=>lClick(s,step));
+        if(step.type==='capture_all'){const bl=Object.values(state.lb).filter(p=>p&&p[0]==='b');if(!bl.length){showFb('lesson','success','Capturaste todas las piezas! Excelente!');setTimeout(nextStep,1200);}else showFb('lesson','info','Quedan '+bl.length+' pieza(s). Sigue!');}
+        else{if(sq===step.to){showFb('lesson','success','Movimiento perfecto! Excelente!');setTimeout(nextStep,1200);}else{showFb('lesson','error','Mueve la pieza a '+step.to.toUpperCase());state.lb={...step.board};renderBoard('lessonBoard',state.lb,null,[],null,null,null,s=>lClick(s,step));}}
+      }else{if(state.lb[sq]&&state.lb[sq][0]==='w'){state.sel=sq;state.vm=legal(state.lb,sq,'w');}else{state.sel=null;state.vm=[];}renderBoard('lessonBoard',state.lb,state.sel,state.vm,state.lf,state.lt,null,s=>lClick(s,step));}
+    }return;
+  }
+  if(step.type==='castle'){if((sq==='e1'||sq==='g1')&&state.lb['e1']==='wK'&&state.lb['h1']==='wR'){const nb={...state.lb};nb['g1']='wK';delete nb['e1'];nb['f1']='wR';delete nb['h1'];state.lb=nb;renderBoard('lessonBoard',state.lb,null,[],null,null,null,()=>{});showFb('lesson','success','Enroque perfecto! El Rey esta protegido!');setTimeout(nextStep,1400);}return;}
+  if(step.type==='escape_check'){
+    if(!state.sel){if(state.lb[sq]==='wK'){state.sel=sq;state.vm=legal(state.lb,sq,'w');renderBoard('lessonBoard',state.lb,sq,state.vm,null,null,sq,s=>lClick(s,step));}}
+    else{if(state.vm.includes(sq)){const nb={...state.lb};nb[sq]=nb[state.sel];delete nb[state.sel];state.lb=nb;state.sel=null;state.vm=[];renderBoard('lessonBoard',state.lb,null,[],null,null,null,()=>{});showFb('lesson','success','El Rey escapo del jaque! Bien hecho!');setTimeout(nextStep,1300);}else{state.sel=null;state.vm=[];renderBoard('lessonBoard',state.lb,null,[],null,null,null,s=>lClick(s,step));}}return;
+  }
+  if(step.type==='promote'){
+    if(!state.sel){if(state.lb[sq]==='wP'){state.sel=sq;state.vm=['e8'];renderBoard('lessonBoard',state.lb,sq,state.vm,null,null,null,s=>lClick(s,step));}}
+    else{if(sq==='e8'){const nb={...state.lb};nb['e8']='wQ';delete nb['e7'];state.lb=nb;renderBoard('lessonBoard',state.lb,null,[],null,null,null,()=>{});showFb('lesson','success','CORONACION! El peon se convirtio en Reina!');setTimeout(nextStep,1500);}}return;
+  }
+}
+function nextStep(){if(state.cs+1>=state.cl.steps.length)doneLesson(state.cl);else{state.cs++;loadStep();}}
+function lessonNext(){nextStep();}function lessonRetry(){loadStep();}
+function doneLesson(lvl){
+  state.done.add(lvl.id);if(!state.stars[lvl.id])state.stars[lvl.id]=3;
+  const ni=CURRICULUM.findIndex(l=>l.id===lvl.id)+1,nxt=ni<CURRICULUM.length?CURRICULUM[ni]:null;
+  showModal('','Leccion Completada!','Completaste "'+lvl.name+'" con 3 estrellas!'+(nxt?'<br>Siguiente: <b>'+nxt.name+'</b>':''),
+    nxt?[{lb:'Continuar!',fn:()=>startDirect(nxt.id),p:true},{lb:'Ver Mapa',fn:closeModal}]:[{lb:'Ver Mapa',fn:closeModal,p:true}]);
+}
+function startDirect(id){closeModal();const lvl=CURRICULUM.find(l=>String(l.id)===String(id));if(lvl)lvl.type==='battle'?startBattle(lvl):startLesson(lvl);}
+
+function startBattle(lvl){
+  state.bdiff=lvl.difficulty;state.bb=initBoard();state.bt='w';state.bm=[];state.bsel=null;state.bvm=[];state.hint=false;state.lf=null;state.lt=null;
+  showScreen('battle');
+  const dn={1:'Facil',2:'Medio',3:'Dificil'},dc={1:'diff-easy',2:'diff-medium',3:'diff-hard'};
+  document.getElementById('battleTitle').textContent=lvl.title;document.getElementById('battleInstruction').textContent=lvl.desc;
+  const bd=document.getElementById('diffBadge');bd.textContent=dn[lvl.difficulty];bd.className='diff-badge '+dc[lvl.difficulty];
+  document.getElementById('btnHint').disabled=false;
+  renderCoords('battleCoordsTop','battleCoordsLeft');renderBattle();renderBSide();
+}
+function initBoard(){return{a8:'bR',b8:'bN',c8:'bB',d8:'bQ',e8:'bK',f8:'bB',g8:'bN',h8:'bR',a7:'bP',b7:'bP',c7:'bP',d7:'bP',e7:'bP',f7:'bP',g7:'bP',h7:'bP',a2:'wP',b2:'wP',c2:'wP',d2:'wP',e2:'wP',f2:'wP',g2:'wP',h2:'wP',a1:'wR',b1:'wN',c1:'wB',d1:'wQ',e1:'wK',f1:'wB',g1:'wN',h1:'wR'};}
+function fKing(board,color){for(const sq in board)if(board[sq]===color+'K')return sq;return null;}
+function renderBattle(){const ck=inCheck(state.bb,'w')?fKing(state.bb,'w'):inCheck(state.bb,'b')?fKing(state.bb,'b'):null;renderBoard('battleBoard',state.bb,state.bsel,state.bvm,state.lf,state.lt,ck,bClick);}
+function bClick(sq){
+  if(state.bt!=='w')return;hideFb('battle');
+  if(!state.bsel){if(state.bb[sq]&&state.bb[sq][0]==='w'){state.bsel=sq;state.bvm=legal(state.bb,sq,'w');renderBattle();}}
+  else{
+    if(state.bvm.includes(sq)){
+      const nb={...state.bb};nb[sq]=nb[state.bsel];delete nb[state.bsel];if(nb[sq]==='wP'&&sq[1]==='8')nb[sq]='wQ';
+      state.lf=state.bsel;state.lt=sq;state.bb=nb;state.bsel=null;state.bvm=[];state.bm.push({c:'w',f:state.lf,t:sq});state.bt='b';renderBattle();renderBSide();
+      if(isMate(state.bb,'b')){endBattle(true);return;}if(isStale(state.bb,'b')){endBattle('d');return;}
+      setTimeout(doAI,500+state.bdiff*200);
+    }else{if(state.bb[sq]&&state.bb[sq][0]==='w'){state.bsel=sq;state.bvm=legal(state.bb,sq,'w');}else{state.bsel=null;state.bvm=[];}renderBattle();}
+  }
+}
+function doAI(){
+  const d=state.bdiff===1?0:state.bdiff===2?1:2,m=aiMove(state.bb,'b',d);if(!m){endBattle(true);return;}
+  const nb={...state.bb};nb[m.to]=nb[m.from];delete nb[m.from];if(nb[m.to]==='bP'&&m.to[1]==='1')nb[m.to]='bQ';
+  state.lf=m.from;state.lt=m.to;state.bb=nb;state.bm.push({c:'b',f:m.from,t:m.to});state.bt='w';renderBattle();renderBSide();
+  if(inCheck(state.bb,'w'))showFb('battle','error','Jaque! Tu Rey esta amenazado!');
+  if(isMate(state.bb,'w')){endBattle(false);return;}if(isStale(state.bb,'w')){endBattle('d');return;}
+}
+function endBattle(res){
+  const bl=CURRICULUM.find(l=>l.type==='battle'&&l.difficulty===state.bdiff);
+  if(res===true){if(bl)state.done.add(bl.id);showModal('','Victoria!','Ganaste contra la IA! Las siguientes lecciones se desbloquearon!',[{lb:'Ver Mapa',fn:closeModal,p:true},{lb:'Revancha',fn:()=>{closeModal();const l=CURRICULUM.find(x=>x.type==='battle'&&x.difficulty===state.bdiff);if(l)startBattle(l);}}]);}
+  else if(res===false){showModal('','Jaque Mate!','La IA te gano esta vez. No te rindas, cada partida te hace mas fuerte!',[{lb:'Revancha!',fn:()=>{closeModal();const l=CURRICULUM.find(x=>x.type==='battle'&&x.difficulty===state.bdiff);if(l)startBattle(l);},p:true},{lb:'Ver Mapa',fn:closeModal}]);}
+  else{if(bl)state.done.add(bl.id);showModal('','Tablas!','Empate por ahogado! Buen juego!',[{lb:'Ver Mapa',fn:closeModal,p:true}]);}
+}
+function undoBattle(){if(state.bm.length<2)return;state.bm.pop();state.bm.pop();state.bb=initBoard();for(const m of state.bm){const nb={...state.bb};nb[m.t]=nb[m.f];delete nb[m.f];state.bb=nb;}state.bsel=null;state.bvm=[];state.bt='w';state.lf=null;state.lt=null;renderBattle();renderBSide();hideFb('battle');}
+function showHint(){if(state.hint)return;const m=aiMove(state.bb,'w',1);if(!m)return;state.hint=true;document.getElementById('btnHint').disabled=true;showFb('battle','info','Pista: mueve de '+m.from.toUpperCase()+' a '+m.to.toUpperCase());}
+function renderBSide(){
+  const side=document.getElementById('battleSide');
+  const last4=state.bm.slice(-4);let mh='';
+  for(let i=0;i<last4.length;i+=2){const w=last4[i],b=last4[i+1];mh+=`${Math.floor(i/2)+1}. ${w?w.f+'-'+w.t:''} ${b?b.f+'-'+b.t:''} `;}
+  side.innerHTML=`<div class="info-box"><h4>Turno</h4><div style="font-size:12px;font-weight:700"><span class="turn-dot ${state.bt}"></span>${state.bt==='w'?'Tu turno!':'IA pensando...'}</div></div><div class="info-box"><h4>Movimientos</h4><div style="font-size:11px;color:#bbb">${mh||'Sin movimientos'}</div><div style="font-size:18px;font-weight:800;color:#f5c542;margin-top:2px">${Math.round(state.bm.length/2)}</div></div>`;
+}
+function showModal(emoji,title,text,buttons){
+  document.getElementById('modalEmoji').textContent=emoji;document.getElementById('modalTitle').textContent=title;document.getElementById('modalText').innerHTML=text;
+  const btns=document.getElementById('modalBtns');btns.innerHTML='';
+  (buttons||[]).forEach(b=>{const btn=document.createElement('button');btn.className='btn '+(b.p?'btn-primary':'btn-ghost');btn.innerHTML=b.lb;btn.onclick=b.fn;btns.appendChild(btn);});
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+let deferredPrompt;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;document.getElementById('installBanner').style.display='flex';});
+goMap();
+</script>
+</body>
+</html>
